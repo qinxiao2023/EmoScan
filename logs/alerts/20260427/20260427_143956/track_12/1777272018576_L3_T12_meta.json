@@ -1,0 +1,46 @@
+{
+  "camera_id": 0,
+  "message": "三級高危：大幅偏離或快速上升 (z=56400.00, slope=0.00/s, sync=0.25)",
+  "metrics": {
+    "risk": 0.0564,
+    "z": 56400.0,
+    "duration_sec": 0.0,
+    "slope_z_per_sec": 0.0,
+    "sync_ratio": 0.25,
+    "crowd_median": 0.0,
+    "crowd_mad": 0.0
+  },
+  "settings": {
+    "ema_alpha": 0.3,
+    "crowd_window_sec": 5.0,
+    "eps": 1e-06,
+    "risk_weights": {
+      "angry": 1.0,
+      "fear": 0.9,
+      "disgust": 0.7,
+      "sad": 0.5
+    },
+    "thresholds": {
+      "t1": 1.5,
+      "t2": 2.5,
+      "t3": 3.5
+    },
+    "durations": {
+      "d2_sec": 3.0
+    },
+    "slope_window_sec": 3.0,
+    "slopes": {
+      "s3_z_per_sec": 0.6
+    },
+    "sync": {
+      "y3_ratio": 0.35,
+      "crowd_median_min": 0.0
+    },
+    "track_ttl_sec": 10.0,
+    "max_recent_alerts": 200
+  },
+  "alert_id": "1777272018576_L3_T12",
+  "level": 3,
+  "track_id": 12,
+  "ts": 1777272018.5762208
+}

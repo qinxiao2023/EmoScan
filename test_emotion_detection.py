@@ -166,7 +166,8 @@ class TestWebEmotionDetector(unittest.TestCase):
         """Test web emotion detector initialization"""
         self.assertIsNotNone(self.web_detector)
         self.assertEqual(len(self.web_detector.emotions), 7)
-        self.assertIsNotNone(self.web_detector.face_cascade)
+        # Web detector now uses a face detector that outputs bbox + score
+        self.assertIsNotNone(getattr(self.web_detector, "face_detector", None))
     
     def test_web_detector_start_stop(self):
         """Test web detector start and stop functionality"""
@@ -250,6 +251,95 @@ class TestDataStructures(unittest.TestCase):
         required_fields = ['timestamp', 'dominant_emotion'] + detector.emotions
         for field in required_fields:
             self.assertIn(field, log_entry)
+
+
+class TestBYTETracker(unittest.TestCase):
+    """Sanity tests for (ByteTrack-like) tracker"""
+
+    def test_track_id_stability_simple_motion(self):
+        from tracking.bytetrack import BYTETracker
+
+        trk = BYTETracker(high_thresh=0.6, low_thresh=0.1, iou_thresh=0.3, max_time_lost=5, min_hits=1)
+        # one object moving slightly to the right
+        dets_seq = []
+        for i in range(10):
+            x1 = 100 + i * 2
+            y1 = 100
+            x2 = x1 + 50
+            y2 = y1 + 50
+            dets_seq.append([((x1, y1, x2, y2), 0.9)])
+
+        ids = []
+        for dets in dets_seq:
+            tracks = trk.update(dets)
+            self.assertTrue(len(tracks) >= 1)
+            ids.append(int(tracks[0].track_id))
+
+        # Should keep a single consistent id
+        self.assertEqual(len(set(ids)), 1)
+
+
+class TestRiskEngine(unittest.TestCase):
+    """Sanity tests for MAD edge cases and tiering"""
+
+    def test_mad_zero_no_crash(self):
+        from alerting.risk_engine import RiskEngine
+
+        settings = {
+            "ema_alpha": 0.3,
+            "crowd_window_sec": 5.0,
+            "eps": 1e-6,
+            "risk_weights": {"angry": 1.0, "fear": 1.0, "disgust": 1.0, "sad": 1.0},
+            "thresholds": {"t1": 1.5, "t2": 2.5, "t3": 3.5},
+            "durations": {"d2_sec": 1.0},
+            "slope_window_sec": 1.0,
+            "slopes": {"s3_z_per_sec": 0.6},
+            "sync": {"y3_ratio": 0.35, "crowd_median_min": 0.0},
+            "track_ttl_sec": 10.0,
+            "max_recent_alerts": 50,
+        }
+        emotions = ["happy", "sad", "angry", "neutral", "surprise", "fear", "disgust"]
+        eng = RiskEngine(settings=settings, emotions=emotions)
+
+        ts = 1000.0
+        probs = {1: {e: 0.0 for e in emotions}, 2: {e: 0.0 for e in emotions}}
+        smoothed, metrics, alerts = eng.update(ts=ts, track_probs=probs)
+        self.assertIn(1, metrics)
+        self.assertIn(2, metrics)
+        # MAD should be zero, but z should still be finite due to eps
+        self.assertTrue(np.isfinite(metrics[1]["z"]))
+
+    def test_tier_alert_generation(self):
+        from alerting.risk_engine import RiskEngine
+
+        settings = {
+            "ema_alpha": 1.0,  # no smoothing for test
+            "crowd_window_sec": 5.0,
+            "eps": 1e-6,
+            "risk_weights": {"angry": 1.0},
+            "thresholds": {"t1": 0.5, "t2": 1.0, "t3": 1.5},
+            "durations": {"d2_sec": 0.5},
+            "slope_window_sec": 0.5,
+            "slopes": {"s3_z_per_sec": 0.1},
+            "sync": {"y3_ratio": 0.0, "crowd_median_min": 0.0},
+            "track_ttl_sec": 10.0,
+            "max_recent_alerts": 50,
+        }
+        emotions = ["happy", "sad", "angry", "neutral", "surprise", "fear", "disgust"]
+        eng = RiskEngine(settings=settings, emotions=emotions)
+
+        # baseline track 2 low risk, track 1 high risk -> should produce alerts
+        alerts_all = []
+        for k in range(5):
+            ts = 2000.0 + k * 0.2
+            track_probs = {
+                1: {"angry": 1.0},
+                2: {"angry": 0.0},
+            }
+            _sm, _m, alerts = eng.update(ts=ts, track_probs=track_probs)
+            alerts_all.extend(alerts)
+
+        self.assertTrue(any(a.level >= 1 for a in alerts_all))
 
 def run_tests():
     """Run all tests"""

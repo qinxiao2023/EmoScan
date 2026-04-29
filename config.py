@@ -75,6 +75,30 @@ WEB_SETTINGS = {
     'threaded': True
 }
 
+# Tiered alerting settings (Web)
+ALERT_SETTINGS = {
+    # EMA smoothing for per-track emotion probabilities
+    "ema_alpha": 0.3,
+    # crowd baseline window (seconds) - for this implementation, computed per tick from active tracks
+    "crowd_window_sec": 5.0,
+    "eps": 1e-6,
+    # risk mapping weights (negative-conflict oriented)
+    "risk_weights": {"angry": 1.0, "fear": 0.9, "disgust": 0.7, "sad": 0.5},
+    # thresholds on robust z-score
+    "thresholds": {"t1": 1.5, "t2": 2.5, "t3": 3.5},
+    # durations
+    "durations": {"d1_sec": 2.0, "d2_sec": 4.0},
+    # New rule: alert depends on duration + intensity only
+    # L1: z > t1 and duration >= d1
+    # L2: z > t2 and duration >= d2
+    # L3: z > t3 (intense) OR (z > t2 and duration >= d3)
+    "durations_ext": {"d3_sec": 6.0},
+    # track state TTL cleanup
+    "track_ttl_sec": 10.0,
+    # recent alerts buffer size
+    "max_recent_alerts": 200,
+}
+
 # Logging settings
 LOGGING = {
     'level': 'INFO',
