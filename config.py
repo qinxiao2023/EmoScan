@@ -75,6 +75,14 @@ WEB_SETTINGS = {
     'threaded': True
 }
 
+# Video upload (Web)
+UPLOAD_SETTINGS = {
+    # Stored under LOGS_DIR by default
+    "upload_dir": str(LOGS_DIR / "uploads"),
+    "max_mb": 500,
+    "allowed_exts": [".mp4", ".avi", ".mov", ".mkv", ".webm"],
+}
+
 # Tiered alerting settings (Web)
 ALERT_SETTINGS = {
     # EMA smoothing for per-track emotion probabilities
@@ -85,7 +93,9 @@ ALERT_SETTINGS = {
     # risk mapping weights (negative-conflict oriented)
     "risk_weights": {"angry": 1.0, "fear": 0.9, "disgust": 0.7, "sad": 0.5},
     # thresholds on robust z-score
-    "thresholds": {"t1": 1.5, "t2": 2.5, "t3": 3.5},
+    # Raised thresholds to reduce false positives (per requirement):
+    # - L3 only when z > 200
+    "thresholds": {"t1": 50.0, "t2": 120.0, "t3": 200.0},
     # durations
     "durations": {"d1_sec": 2.0, "d2_sec": 4.0},
     # New rule: alert depends on duration + intensity only
@@ -97,6 +107,21 @@ ALERT_SETTINGS = {
     "track_ttl_sec": 10.0,
     # recent alerts buffer size
     "max_recent_alerts": 200,
+    # Additional rule: negative emotion accumulation (time/count)
+    "negative_rule": {
+        "enabled": True,
+        # count ratio vs neutral count (dominant-emotion counting per track)
+        "mode": "count_ratio_vs_neutral",
+        "negative_emotions": ["sad", "angry", "fear", "disgust"],
+        "prob_threshold": 0.5,
+        # Only start ratio checks after enough neutral frames accumulated
+        "min_neutral_count": 12,
+        # thresholds: negative_sum >= neutral_sum * ratio
+        "orange_ratio": 1.0 / 3.0,
+        "red_ratio": 1.0 / 2.0,
+        # Avoid repeated alerts for the same level while condition holds
+        "emit_on_escalation_only": True,
+    },
 }
 
 # Logging settings

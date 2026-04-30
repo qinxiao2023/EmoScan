@@ -2,7 +2,7 @@
 """
 Face detection module that outputs bounding boxes with confidence scores.
 
-This is used to feed trackers (e.g., ByteTrack) which rely on detection scores.
+This is used to feed trackers which rely on detection scores.
 """
 
 from __future__ import annotations

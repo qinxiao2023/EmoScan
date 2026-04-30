@@ -157,8 +157,8 @@ class RiskEngine:
                 level = 1
             if z > t2 and duration >= d2:
                 level = 2
-            # L3: intense immediately, or persistent strong negative
-            if z > t3 or (z > t2 and duration >= d3):
+            # L3: only when intensity is extremely high (per requirement)
+            if z > t3:
                 level = 3
 
             metrics[tid] = {
@@ -202,8 +202,9 @@ class RiskEngine:
 
     def _format_message(self, level: int, z: float, duration: float) -> str:
         if level == 1:
-            return f"一级关注：负面情绪持续出现 (z={z:.2f}, 持续{duration:.1f}s)"
+            return f"一级关注：负面情绪出现 (z={z:.2f})"
         if level == 2:
-            return f"二级异常：明显偏离且持续 (z={z:.2f}, 持续{duration:.1f}s)"
-        return f"三级高危：强烈或长时间负面情绪 (z={z:.2f}, 持续{duration:.1f}s)"
+            return f"二级异常：负面情绪明显偏离 (z={z:.2f})"
+        # per requirement: frontend should show wording without duration
+        return "高强度负面情绪"
 

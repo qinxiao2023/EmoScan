@@ -1,0 +1,8 @@
+{
+  "source": "video",
+  "rule": "risk_engine",
+  "alert_id": "1777539293539_L3_T7",
+  "level": 3,
+  "track_id": 7,
+  "ts": 1777539293.5393023
+}

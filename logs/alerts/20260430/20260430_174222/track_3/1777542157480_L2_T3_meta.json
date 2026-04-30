@@ -1,0 +1,8 @@
+{
+  "source": "camera",
+  "rule": "neg_duration",
+  "alert_id": "1777542157480_L2_T3",
+  "level": 2,
+  "track_id": 3,
+  "ts": 1777542157.4804356
+}

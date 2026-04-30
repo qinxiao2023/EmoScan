@@ -155,6 +155,76 @@
             border: 1px solid #e5e7eb;
         }
 
+        .source-section {
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .source-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .radio-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 999px;
+            background: #f9fafb;
+            cursor: pointer;
+            user-select: none;
+            font-weight: 600;
+        }
+
+        .radio-pill input {
+            accent-color: #111827;
+        }
+
+        .upload-box {
+            margin-top: 12px;
+            padding: 12px;
+            border: 1px dashed #d1d5db;
+            border-radius: 12px;
+            background: #fbfbfd;
+        }
+
+        .upload-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .upload-actions .btn,
+        .upload-actions .file-btn {
+            min-width: 124px;
+            padding: 12px 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        .file-btn input[type="file"] {
+            display: none;
+        }
+
+        .upload-hint {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 0.92rem;
+            color: rgba(17,24,39,0.75);
+            word-break: break-all;
+        }
+
         .stats-title {
             font-size: 1.5rem;
             font-weight: 600;
@@ -246,8 +316,9 @@
             position: fixed;
             top: 18px;
             right: 18px;
-            max-width: 360px;
-            padding: 12px 14px;
+            min-width: 360px;
+            max-width: 520px;
+            padding: 16px 18px;
             border-radius: 12px;
             border: 1px solid rgba(185, 28, 28, 0.25);
             background: rgba(254, 226, 226, 0.95);
@@ -255,6 +326,8 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.12);
             display: none;
             z-index: 9999;
+            font-size: 1rem;
+            line-height: 1.35rem;
         }
 
         .toast.show {
@@ -324,7 +397,7 @@
         }
 
         .badge.l1 { color: #b45309; border-color: rgba(180,83,9,0.35); }
-        .badge.l2 { color: #c2410c; border-color: rgba(194,65,12,0.35); }
+        .badge.l2 { color: #92400e; border-color: rgba(245,158,11,0.45); background: rgba(251, 191, 36, 0.18); }
         .badge.l3 { color: #b91c1c; border-color: rgba(185,28,28,0.35); }
 
         .alert-meta {
@@ -446,6 +519,29 @@
 
         <div class="main-content">
             <div class="left-panel">
+                <div class="source-section panel">
+                    <h2 class="stats-title" style="margin-bottom: 6px;">视频源</h2>
+                    <div class="source-row">
+                        <label class="radio-pill">
+                            <input type="radio" name="videoSource" id="sourceCamera" value="camera" checked>
+                            摄像头
+                        </label>
+                        <label class="radio-pill">
+                            <input type="radio" name="videoSource" id="sourceUpload" value="upload">
+                            上传视频
+                        </label>
+                    </div>
+                    <div class="upload-box" id="uploadBox" style="display:none;">
+                        <div class="upload-actions">
+                            <label class="btn btn-secondary file-btn" id="pickFileBtn">
+                                选择文件
+                                <input type="file" id="videoFile" accept="video/*">
+                            </label>
+                            <button id="uploadBtn" class="btn btn-secondary">上传</button>
+                        </div>
+                        <div class="upload-hint" id="uploadHint">未选择文件</div>
+                    </div>
+                </div>
                 <div class="stats-section">
                     <h2 class="stats-title">表情统计（计数）</h2>
                     <div class="emotion-stats" id="emotionStats">
@@ -538,6 +634,13 @@
         const alertsList = document.getElementById('alertsList');
         const toast = document.getElementById('toast');
 
+        const sourceCamera = document.getElementById('sourceCamera');
+        const sourceUpload = document.getElementById('sourceUpload');
+        const uploadBox = document.getElementById('uploadBox');
+        const videoFile = document.getElementById('videoFile');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadHint = document.getElementById('uploadHint');
+
         const emotionCounts = {
             happy: document.getElementById('happyCount'),
             sad: document.getElementById('sadCount'),
@@ -561,18 +664,90 @@
         let statsInterval;
         let alertsInterval;
         let lastAlertsKey = '';
+        let uploadedVideoId = null;
+        let uploadedVideoName = '';
 
         // Event listeners
         startBtn.addEventListener('click', startDetection);
         stopBtn.addEventListener('click', stopDetection);
         saveBtn.addEventListener('click', saveLog);
         resetBtn.addEventListener('click', resetStats);
+        uploadBtn.addEventListener('click', uploadSelectedVideo);
+        sourceCamera.addEventListener('change', onSourceChange);
+        sourceUpload.addEventListener('change', onSourceChange);
+        videoFile.addEventListener('change', onFileChange);
 
         // Functions
+        function onSourceChange() {
+            uploadBox.style.display = sourceUpload.checked ? 'block' : 'none';
+        }
+
+        function onFileChange() {
+            uploadedVideoId = null;
+            uploadedVideoName = '';
+            if (!videoFile.files || !videoFile.files[0]) {
+                uploadHint.textContent = '未选择文件';
+                return;
+            }
+            const f = videoFile.files[0];
+            uploadHint.textContent = `已选择：${f.name}（需先上传）`;
+            sourceUpload.checked = true;
+            onSourceChange();
+        }
+
+        async function uploadSelectedVideo() {
+            try {
+                if (!videoFile.files || !videoFile.files[0]) {
+                    alert('请先选择一个视频文件');
+                    return null;
+                }
+                uploadBtn.disabled = true;
+                uploadBtn.textContent = '上传中...';
+
+                const form = new FormData();
+                form.append('file', videoFile.files[0]);
+                const res = await fetch('/upload_video', { method: 'POST', body: form });
+                const data = await res.json();
+                if (data.status !== 'success') {
+                    alert('上传失败：' + (data.message || '未知错误'));
+                    return null;
+                }
+                uploadedVideoId = data.video_id;
+                uploadedVideoName = data.filename || videoFile.files[0].name;
+                uploadHint.textContent = `已上传：${uploadedVideoName}`;
+                return uploadedVideoId;
+            } catch (e) {
+                console.error(e);
+                alert('上传失败：' + String(e));
+                return null;
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '上传';
+            }
+        }
+
         async function startDetection() {
             try {
                 showLoading(true);
-                const response = await fetch('/start_detection', { method: 'POST' });
+                let payload = null;
+                if (sourceUpload.checked) {
+                    if (!uploadedVideoId) {
+                        const vid = await uploadSelectedVideo();
+                        if (!vid) {
+                            showLoading(false);
+                            return;
+                        }
+                    }
+                    payload = { source: 'video', video_id: uploadedVideoId };
+                } else {
+                    payload = { source: 'camera' };
+                }
+
+                const response = await fetch('/start_detection', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
                 const data = await response.json();
                 
                 if (data.status === 'success') {
@@ -699,7 +874,7 @@
             if (toastTimer) clearTimeout(toastTimer);
             toastTimer = setTimeout(() => {
                 toast.classList.remove('show');
-            }, 3500);
+            }, 7000);
         }
 
         function startAlertsUpdate() {
@@ -750,8 +925,21 @@
                     const t = fmtTime(a.ts);
                     const z = Number(a.z ?? 0).toFixed(2);
                     const risk = Number(a.risk ?? 0).toFixed(2);
-                    const dur = Number(a.duration_sec ?? 0).toFixed(1);
                     const msg = (a.message || '').replace(/</g, '&lt;');
+                    const rule = String(a.rule || '');
+
+                    let kpi = '';
+                    if (rule === 'risk_engine') {
+                        if (lvl === 3) {
+                            kpi = '高强度负面情绪';
+                        } else {
+                            kpi = `risk ${risk} · z ${z}`;
+                        }
+                    } else if (rule === 'neg_count_ratio') {
+                        kpi = '持续负面情绪';
+                    } else {
+                        kpi = msg || `risk ${risk} · z ${z}`;
+                    }
 
                     return `
                         <div class="alert-item">
@@ -761,7 +949,7 @@
                                     <div class="alert-track">${t} · ${track}</div>
                                 </div>
                                 <div class="alert-msg">${msg}</div>
-                                <div class="alert-kpi">risk ${risk} · z ${z} · 持续 ${dur}s</div>
+                                <div class="alert-kpi">${kpi}</div>
                             </div>
                         </div>
                     `;
